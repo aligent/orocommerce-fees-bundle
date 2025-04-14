@@ -16,7 +16,7 @@ namespace Aligent\FeesBundle\ContextHandler;
 
 use Aligent\FeesBundle\DependencyInjection\Configuration;
 use Oro\Bundle\ConfigBundle\Config\ConfigManager;
-use Oro\Bundle\OrderBundle\Entity\OrderLineItem;
+use Oro\Bundle\OrderBundle\Entity\OrderHolderInterface;
 use Oro\Bundle\ProductBundle\Entity\Product;
 use Oro\Bundle\TaxBundle\Model\TaxCodeInterface;
 use Oro\Bundle\TaxBundle\OrderTax\ContextHandler\OrderLineItemHandler;
@@ -34,7 +34,7 @@ class FreeFormAwareTaxOrderLineItemHandler extends OrderLineItemHandler
      * NOTE: The parent getProductTaxCode method says it returns an instance of TaxCodeInterface
      *       when in reality it returns a string (ie TaxCodeInterface::getCode()).
      */
-    protected function getProductTaxCode(OrderLineItem $lineItem): ?string
+    protected function getProductTaxCode(OrderHolderInterface $lineItem): ?string
     {
         $taxCode = parent::getProductTaxCode($lineItem);
 
