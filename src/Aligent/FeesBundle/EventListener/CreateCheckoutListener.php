@@ -32,13 +32,12 @@ class CreateCheckoutListener
         $this->managerRegistry = $registry;
     }
 
-    public function onStartCheckoutConditionCheck(ExtendableConditionEvent $event): bool
+    public function onStartCheckoutConditionCheck(ExtendableConditionEvent $event): void
     {
-        /** @var ActionData<string,mixed> $context */
-        $context = $event->getContext();
-
-        /** @var Checkout $checkout */
-        $checkout = $context->get('checkout');
+        $checkout = $event->getData()?->offsetGet('checkout');
+        if (!$checkout instanceof Checkout) {
+            return;
+        }
 
         $needsFlush = false;
 
@@ -71,7 +70,5 @@ class CreateCheckoutListener
             $manager->persist($checkout);
             $manager->flush();
         }
-
-        return true;
     }
 }
