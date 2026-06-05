@@ -40,16 +40,10 @@ abstract class AbstractSubtotalFeeProvider extends AbstractSubtotalProvider impl
     /**
      * @throws InvalidRoundingTypeException
      */
-    public function getSubtotal($entity): ?Subtotal
+    public function getSubtotal($entity): Subtotal
     {
         if (!$this->isSupported($entity)) {
             throw new \InvalidArgumentException('Entity not supported for provider');
-        }
-
-        $fee = $this->getFeeAmount($entity);
-
-        if ($fee === null) {
-            return null;
         }
 
         $subtotal = new Subtotal();
@@ -57,11 +51,17 @@ abstract class AbstractSubtotalFeeProvider extends AbstractSubtotalProvider impl
             ->setType($this->getName())
             ->setSortOrder($this->getSortOrder())
             ->setLabel($this->getFeeLabel())
-            ->setVisible(true)
-            ->setCurrency($this->getBaseCurrency($entity))
-            ->setAmount($this->rounding->round($fee));
+            ->setCurrency($this->getBaseCurrency($entity));
 
-        return $subtotal;
+        $fee = $this->getFeeAmount($entity);
+
+        if ($fee === null) {
+            return $subtotal->setVisible(false)->setAmount(0.0);
+        }
+
+        return $subtotal
+            ->setVisible(true)
+            ->setAmount($this->rounding->round($fee));
     }
 
     abstract protected function getFeeAmount(mixed $entity): ?float;

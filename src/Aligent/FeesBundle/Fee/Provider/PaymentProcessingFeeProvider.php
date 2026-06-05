@@ -12,6 +12,8 @@ namespace Aligent\FeesBundle\Fee\Provider;
 use Aligent\FeesBundle\DependencyInjection\Configuration;
 use Brick\Math\BigDecimal;
 use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Persistence\ManagerRegistry;
+use Oro\Bundle\CheckoutBundle\Entity\Checkout;
 use Oro\Bundle\CheckoutBundle\Payment\Method\EntityPaymentMethodsProvider;
 use Oro\Bundle\CurrencyBundle\Exception\InvalidRoundingTypeException;
 use Oro\Bundle\OrderBundle\Entity\Order;
@@ -27,12 +29,13 @@ class PaymentProcessingFeeProvider extends AbstractSubtotalFeeProvider
     protected EntityPaymentMethodsProvider $entityPaymentMethodsProvider;
     protected SubtotalProviderRegistry $subtotalProviderRegistry;
     protected TotalProcessorProvider $totalProcessorProvider;
+    protected ManagerRegistry $doctrine;
 
     protected bool $forceRecalculation = false;
 
     public function isSupported(mixed $entity): bool
     {
-        return $entity instanceof Order && method_exists($entity, 'getProcessingFee');
+        return $entity instanceof Order || $entity instanceof Checkout;
     }
 
     public function getName(): string
@@ -56,13 +59,18 @@ class PaymentProcessingFeeProvider extends AbstractSubtotalFeeProvider
             throw new \InvalidArgumentException('Entity not supported for provider');
         }
 
-        if ($entity->getId() && !$this->forceRecalculation) {
-            // Load fee from Entity (ie persisted against Order)
-            $fee = $entity->getProcessingFee();
-        } else {
-            // Calculate the fee and assign it back to the Entity
-            $fee = $this->calculateProcessingFee($entity);
-            $entity->setProcessingFee($fee);
+        if ($entity instanceof Order && $entity->getId() && !$this->forceRecalculation) {
+            // Load fee from persisted Order via Doctrine metadata
+            $persisted = $this->getOrderFieldValue($entity, 'processing_fee');
+            if ($persisted !== null) {
+                return (float) $persisted;
+            }
+        }
+
+        // Calculate the fee
+        $fee = $this->calculateProcessingFee($entity);
+        if ($entity instanceof Order) {
+            $this->setOrderFieldValue($entity, 'processing_fee', $fee);
         }
 
         return $fee;
@@ -159,11 +167,37 @@ class PaymentProcessingFeeProvider extends AbstractSubtotalFeeProvider
 
     protected function getPaymentMethod(object $entity): ?string
     {
+        if ($entity instanceof Checkout) {
+            return $entity->getPaymentMethod();
+        }
         if ($entity instanceof Order) {
             $paymentMethods = $this->entityPaymentMethodsProvider->getPaymentMethods($entity);
-            return current($paymentMethods);
+            return current($paymentMethods) ?: null;
         }
         return null;
+    }
+
+    private function getOrderFieldValue(Order $order, string $field): mixed
+    {
+        $em = $this->doctrine->getManagerForClass(Order::class);
+        if (!$em) {
+            return null;
+        }
+        return $em->getClassMetadata(Order::class)->getFieldValue($order, $field);
+    }
+
+    private function setOrderFieldValue(Order $order, string $field, mixed $value): void
+    {
+        $em = $this->doctrine->getManagerForClass(Order::class);
+        if (!$em) {
+            return;
+        }
+        $em->getClassMetadata(Order::class)->setFieldValue($order, $field, $value);
+    }
+
+    public function setDoctrine(ManagerRegistry $doctrine): void
+    {
+        $this->doctrine = $doctrine;
     }
 
     public function setForceRecalculation(bool $forceRecalculation): void

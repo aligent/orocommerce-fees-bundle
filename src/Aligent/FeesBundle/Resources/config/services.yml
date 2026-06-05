@@ -34,6 +34,7 @@ services:
             - ['setEntityPaymentMethodsProvider', ['@oro_checkout.payment_methods_provider']]
             - ['setSubtotalProviderRegistry', ['@oro_pricing.subtotal_processor.subtotal_provider_registry']]
             - ['setTotalProcessorProvider', ['@oro_pricing.subtotal_processor.total_processor_provider']]
+            - ['setDoctrine', ['@doctrine']]
         tags:
             - { name: oro_pricing.subtotal_provider, alias: aligent_fees.subtotal_payment_processing_fee, priority: 5000 }
 
